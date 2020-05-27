@@ -1,76 +1,125 @@
-//#define GL_SILENCE_DEPRECATION
-#define MAGNUM_TARGET_GL
+//
+// Created by Markiian Benovskyi on 27/05/2020.
+//
 
-#include <Magnum/GL/Buffer.h>
-#include <Magnum/GL/DefaultFramebuffer.h>
-#include <Magnum/GL/Mesh.h>
-#include <Magnum/Math/Color.h>
-#include <Magnum/Shaders/VertexColor.h>
-#include <Magnum/Platform/GLContext.h>
+// Include standard headers
+#include <cstdio>
+#include <cstdlib>
 
+// Include GLEW
+#include <GL/glew.h>
+
+// Include GLFW
 #include <GLFW/glfw3.h>
 
-using namespace Magnum;
-using namespace Math::Literals;
+GLFWwindow *window;
 
-int main(int argc, char** argv) {
-    /* Initialize the library */
-    if(!glfwInit()) return -1;
+// Include GLM
+#include <glm/glm.hpp>
 
-    /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* const window = glfwCreateWindow(
-            800, 600, "Magnum Plain GLFW Triangle Example", nullptr, nullptr);
-    if(!window) {
+using namespace glm;
+
+#include "common/shader.h"
+
+int main() {
+    // Initialise GLFW
+    if (!glfwInit()) {
+        fprintf(stderr, "Failed to initialize GLFW\n");
+        getchar();
+        return -1;
+    }
+
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Open a window and create its OpenGL context
+    window = glfwCreateWindow(1024, 768, "Tutorial 02 - Red triangle", nullptr, nullptr);
+    if (window == nullptr) {
+        fprintf(stderr,
+                "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
+        getchar();
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+
+    // Initialize GLEW
+    glewExperimental = true; // Needed for core profile
+    if (glewInit() != GLEW_OK) {
+        fprintf(stderr, "Failed to initialize GLEW\n");
+        getchar();
         glfwTerminate();
         return -1;
     }
 
-    /* Make the window's context current */
-    glfwMakeContextCurrent(window);
+    // Ensure we can capture the escape key being pressed below
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
-    {
-        /* Create Magnum context in an isolated scope */
-        Platform::GLContext ctx{argc, argv};
+    // Dark blue background
+    glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
-        /* Setup the colored triangle */
-        using namespace Math::Literals;
+    GLuint VertexArrayID;
+    glGenVertexArrays(1, &VertexArrayID);
+    glBindVertexArray(VertexArrayID);
 
-        struct TriangleVertex {
-            Vector2 position;
-            Color3 color;
-        };
-        const TriangleVertex data[]{
-                {{-0.5f, -0.5f}, 0xff0000_rgbf},    /* Left vertex, red color */
-                {{ 0.5f, -0.5f}, 0x00ff00_rgbf},    /* Right vertex, green color */
-                {{ 0.0f,  0.5f}, 0x0000ff_rgbf}     /* Top vertex, blue color */
-        };
+    // Create and compile our GLSL program from the shaders
+    GLuint programID = LoadShaders("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader");
 
-        GL::Buffer buffer;
-        buffer.setData(data);
 
-        GL::Mesh mesh;
-        mesh.setPrimitive(GL::MeshPrimitive::Triangles)
-                .setCount(3)
-                .addVertexBuffer(buffer, 0,
-                                 Shaders::VertexColor2D::Position{},
-                                 Shaders::VertexColor2D::Color3{});
+    static const GLfloat g_vertex_buffer_data[] = {
+            -1.0f, -1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+    };
 
-        Shaders::VertexColor2D shader;
+    GLuint vertexbuffer;
+    glGenBuffers(1, &vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-        /* Loop until the user closes the window */
-        while(!glfwWindowShouldClose(window)) {
+    do {
 
-            /* Render here */
-            GL::defaultFramebuffer.clear(GL::FramebufferClear::Color);
-            mesh.draw(shader);
+        // Clear the screen
+        glClear(GL_COLOR_BUFFER_BIT);
 
-            /* Swap front and back buffers */
-            glfwSwapBuffers(window);
+        // Use our shader
+        glUseProgram(programID);
 
-            /* Poll for and process events */
-            glfwPollEvents();
-        }
-    }
+        // 1rst attribute buffer : vertices
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+        glVertexAttribPointer(
+                0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+                3,                  // size
+                GL_FLOAT,           // type
+                GL_FALSE,           // normalized?
+                0,                  // stride
+                (void *) nullptr    // array buffer offset
+        );
 
+        // Draw the triangle !
+        glDrawArrays(GL_TRIANGLES, 0, 3); // 3 indices starting at 0 -> 1 triangle
+
+        glDisableVertexAttribArray(0);
+
+        // Swap buffers
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+
+    } // Check if the ESC key was pressed or the window was closed
+    while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
+           glfwWindowShouldClose(window) == 0);
+
+    // Cleanup VBO
+    glDeleteBuffers(1, &vertexbuffer);
+    glDeleteVertexArrays(1, &VertexArrayID);
+    glDeleteProgram(programID);
+
+    // Close OpenGL window and terminate GLFW
     glfwTerminate();
+
+    return 0;
 }
