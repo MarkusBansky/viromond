@@ -4,7 +4,6 @@
 
 // Include standard headers
 #include <cstdio>
-#include <cstdlib>
 
 // Include GLEW
 #include <GL/glew.h>
@@ -14,12 +13,11 @@
 
 GLFWwindow *window;
 
-// Include GLM
-#include <glm/glm.hpp>
-
-using namespace glm;
-
 #include "common/shader.h"
+
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(viromod);
 
 int main() {
     // Initialise GLFW
@@ -65,10 +63,10 @@ int main() {
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
 
-    // Create and compile our GLSL program from the shaders
+    // Create and compile our GLSL program from the resources
     GLuint programID = LoadShaders(
-            "simple_vertex_shader.vertexshader",
-            "simple_fragment_shader.fragmentshader");
+            "../resources/simple_vertex_shader.vertexshader",
+            "../resources/simple_fragment_shader.fragmentshader");
 
 
     static const GLfloat g_vertex_buffer_data[] = {
